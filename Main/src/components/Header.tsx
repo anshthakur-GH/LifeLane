@@ -34,6 +34,12 @@ export const Header: React.FC = () => {
             >
               Dashboard
             </Link>
+            <Link
+              to="/contact"
+              className={`$${isActive('/contact') ? 'text-primary' : 'text-header hover:text-primary'} font-medium transition-colors`}
+            >
+              Contact
+            </Link>
           </nav>
 
           {/* Login on the right */}
@@ -76,6 +82,13 @@ export const Header: React.FC = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Dashboard
+              </Link>
+              <Link
+                to="/contact"
+                className={`$${isActive('/contact') ? 'text-primary' : 'text-header'} font-medium`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Contact
               </Link>
               <Link
                 to="/login"
