@@ -13,7 +13,7 @@ export const ChatBot: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasWelcomed = useRef(false) ; 
+  const hasWelcomed = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,7 +50,7 @@ export const ChatBot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,7 +66,6 @@ export const ChatBot: React.FC = () => {
 
       const data = await response.json();
       setMessages(prev => {
-        // Replace the last assistant message ("Replying...") with the real reply
         const updated = [...prev];
         const lastIndex = updated.map(m => m.role).lastIndexOf('assistant');
         if (lastIndex !== -1 && updated[lastIndex].content === 'Replying...') {
@@ -78,7 +77,6 @@ export const ChatBot: React.FC = () => {
       });
     } catch (error) {
       setMessages(prev => {
-        // Replace the last assistant message ("Replying...") with the error
         const updated = [...prev];
         const lastIndex = updated.map(m => m.role).lastIndexOf('assistant');
         if (lastIndex !== -1 && updated[lastIndex].content === 'Replying...') {

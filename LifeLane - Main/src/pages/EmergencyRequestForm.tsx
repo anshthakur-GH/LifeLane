@@ -65,21 +65,20 @@ export const EmergencyRequestForm: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const form = new FormData();
-      form.append('user_id', '1'); // Replace with real user id if available
-      form.append('patient_name', formData.patientName);
-      form.append('problem_description', formData.problemDescription);
-      form.append('details', `Age: ${formData.age}`);
-      if (image) {
-        form.append('image', image);
-      }
-      if (audioBlob) {
-        form.append('audio', audioBlob, 'emergency-audio.webm');
-      }
+      const requestData = {
+        patient_name: formData.patientName,
+        problem_description: formData.problemDescription,
+        details: `Age: ${formData.age}`
+      };
+
       const res = await fetch('http://localhost:5000/api/emergency-request', {
         method: 'POST',
-        body: form,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
       });
+
       const data = await res.json();
       if (res.ok && data.id) {
         navigate(`/status/${data.id}`);
