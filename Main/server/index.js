@@ -1,12 +1,14 @@
+// LifeLane backend - ready for Railway deployment with MySQL and JWT authentication
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const pool = require('./db');
+const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const fetch = require('node-fetch');
 
 dotenv.config();
 
@@ -34,143 +36,101 @@ if (!fs.existsSync(usersPath)) {
 app.use(cors());
 app.use(express.json());
 
-function readRequests() {
-  if (!fs.existsSync(emergencyRequestsPath)) return [];
-  return JSON.parse(fs.readFileSync(emergencyRequestsPath, 'utf8'));
-}
-function writeRequests(requests) {
-  fs.writeFileSync(emergencyRequestsPath, JSON.stringify(requests, null, 2));
+// JWT Auth Middleware
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.sendStatus(401);
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
 }
 
-// Health check route
-app.get('/', (req, res) => {
-  res.send('LifeLane backend is running');
-});
+// Seed admin user
+async function seedAdmin() {
+  const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', ['unfazed.services@gmail.com']);
+  if (rows.length === 0) {
+    const password_hash = await bcrypt.hash('unfazed_24052025', 10);
+    await pool.query(
+      'INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+      ['Admin', 'unfazed.services@gmail.com', password_hash, 1]
+    );
+    console.log('Admin user seeded');
+  }
+}
+seedAdmin();
 
-// User Registration
+// Registration
 app.post('/api/register', async (req, res) => {
   const { name, email, password } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-
-  try {
-    const users = JSON.parse(fs.readFileSync(usersPath, 'utf8'));
-    if (users.some(user => user.email === email)) {
-      return res.status(400).json({ error: 'Email already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = { id: Date.now(), name, email, password: hashedPassword };
-    users.push(newUser);
-    fs.writeFileSync(usersPath, JSON.stringify(users, null, 2));
-    res.status(201).json({ message: 'User registered successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
+  if (!name || !email || !password) return res.status(400).json({ error: 'All fields are required' });
+  const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+  if (existing.length > 0) return res.status(400).json({ error: 'Email already exists' });
+  const password_hash = await bcrypt.hash(password, 10);
+  await pool.query('INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, ?)', [name, email, password_hash, 0]);
+  res.status(201).json({ message: 'User registered successfully' });
 });
 
-// User Login
+// Login
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
-
-  try {
-    const users = JSON.parse(fs.readFileSync(usersPath, 'utf8'));
-    const user = users.find(u => u.email === email);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
-    res.json({ token });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+  if (users.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+  const user = users[0];
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+  const token = jwt.sign({ id: user.id, email: user.email, is_admin: user.is_admin }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  res.json({ token, is_admin: user.is_admin, name: user.name, email: user.email });
 });
 
-// POST: Save new request (fix: use multer to parse FormData)
-app.post('/api/emergency-request', upload.none(), (req, res) => {
-  const requests = readRequests();
-  const { user_id, patient_name, problem_description, details } = req.body || {};
-  const newRequest = {
-    id: Date.now(),
-    user_id,
-    patient_name,
-    problem_description,
-    details,
-    status: 'pending'
-  };
-  requests.push(newRequest);
-  writeRequests(requests);
-  res.json({ id: newRequest.id, message: 'Request received' });
+// Create Emergency Request
+app.post('/api/emergency-request', authenticateToken, async (req, res) => {
+  const { patient_name, problem_description, details } = req.body;
+  const user_id = req.user.id;
+  const [result] = await pool.query(
+    'INSERT INTO emergency_requests (user_id, patient_name, problem_description, details, status, createdAt) VALUES (?, ?, ?, ?, ?, NOW())',
+    [user_id, patient_name, problem_description, details, 'pending']
+  );
+  res.json({ id: result.insertId, message: 'Request received' });
 });
 
-// GET: List all requests
-app.get('/api/emergency-requests', (req, res) => {
-  res.json(readRequests());
+// Get requests for logged-in user
+app.get('/api/my-requests', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const [requests] = await pool.query(
+    'SELECT * FROM emergency_requests WHERE user_id = ? ORDER BY createdAt DESC',
+    [userId]
+  );
+  res.json(requests);
 });
 
-// Update Emergency Request Status
-app.put('/api/emergency-request/:id', (req, res) => {
+// Get all requests (admin)
+app.get('/api/emergency-requests', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.sendStatus(403);
+  const [requests] = await pool.query(
+    'SELECT er.*, u.name as user_name, u.email as user_email FROM emergency_requests er JOIN users u ON er.user_id = u.id ORDER BY er.createdAt DESC'
+  );
+  res.json(requests);
+});
+
+// Update Emergency Request Status (admin)
+app.put('/api/emergency-request/:id', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.sendStatus(403);
   const { id } = req.params;
   const { status } = req.body;
-  if (!status) {
-    return res.status(400).json({ error: 'Status is required' });
+  let code = null, grantedAt = null;
+  if (status === 'granted') {
+    code = `SRN-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+    grantedAt = new Date();
   }
-
-  try {
-    const requests = JSON.parse(fs.readFileSync(emergencyRequestsPath, 'utf8'));
-    const requestIndex = requests.findIndex(req => req.id === parseInt(id));
-    if (requestIndex === -1) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-
-    if (status === 'granted') {
-      // Generate siren code and set grantedAt timestamp
-      const code = `SRN-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-      requests[requestIndex].status = 'granted';
-      requests[requestIndex].code = code;
-      requests[requestIndex].grantedAt = new Date().toISOString();
-    } else if (status === 'dismissed') {
-      requests[requestIndex].status = 'dismissed';
-      requests[requestIndex].code = null;
-      requests[requestIndex].grantedAt = null;
-    }
-    // If status is set back to pending, clear code and grantedAt
-    if (status === 'pending') {
-      requests[requestIndex].status = 'pending';
-      requests[requestIndex].code = null;
-      requests[requestIndex].grantedAt = null;
-    }
-
-    fs.writeFileSync(emergencyRequestsPath, JSON.stringify(requests, null, 2));
-    res.json({ message: 'Request updated successfully', request: requests[requestIndex] });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get Emergency Request by ID
-app.get('/api/emergency-request/:id', (req, res) => {
-  const { id } = req.params;
-  try {
-    const requests = JSON.parse(fs.readFileSync(emergencyRequestsPath, 'utf8'));
-    const request = requests.find(req => req.id === parseInt(id));
-    if (!request) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-    res.json(request);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
+  await pool.query(
+    'UPDATE emergency_requests SET status = ?, code = ?, grantedAt = ? WHERE id = ?',
+    [status, code, grantedAt, id]
+  );
+  res.json({ message: 'Request updated successfully' });
 });
 
 const lifelaneDocs = `
@@ -288,6 +248,11 @@ app.post('/api/chat', async (req, res) => {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Failed to process chat request' });
   }
+});
+
+// Health check route
+app.get('/', (req, res) => {
+  res.send('LifeLane backend is running');
 });
 
 app.listen(port, () => {
