@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send } from 'lucide-react';
+import BotLogo from '../assets/Bot-Logo.png';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -97,9 +98,9 @@ export const ChatBot: React.FC = () => {
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-90 transition-all text-2xl"
+          className="bg-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-90 transition-all text-2xl flex items-center justify-center"
         >
-          {'🤖'}
+          <img src={BotLogo} alt="Bot Logo" className="w-8 h-8" />
         </button>
       ) : (
         <div className="bg-white rounded-lg shadow-xl w-96 h-[500px] flex flex-col">
