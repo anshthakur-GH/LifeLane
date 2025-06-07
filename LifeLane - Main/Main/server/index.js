@@ -1,20 +1,27 @@
 // LifeLane backend - ready for Railway deployment with MySQL and JWT authentication
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const pool = require('./db');
-const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
-const multer = require('multer');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import pool from './db.js';
+import fetch from 'node-fetch';
+import fs from 'fs';
+import path from 'path';
+import multer from 'multer';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 const upload = multer();
+
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // JSON file paths
 const emergencyRequestsPath = path.join(__dirname, 'data', 'emergency_requests.json');
@@ -255,6 +262,12 @@ app.get('/', (req, res) => {
   res.send('LifeLane backend is running');
 });
 
+// The "catchall" handler: for any request that doesn't
+// match one above, send back React's index.html file.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 }); 
