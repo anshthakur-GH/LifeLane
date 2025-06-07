@@ -7,6 +7,10 @@ import { Dashboard } from './pages/Dashboard';
 import { EmergencyRequestForm } from './pages/EmergencyRequestForm';
 import { RequestStatus } from './pages/RequestStatus';
 import { AdminPanel } from './pages/AdminPanel';
+import Contact from './pages/Contact';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import { ChatBot } from './components/ChatBot';
 
 function App() {
   return (
@@ -20,7 +24,11 @@ function App() {
           <Route path="/request" element={<EmergencyRequestForm />} />
           <Route path="/status/:id" element={<RequestStatus />} />
           <Route path="/adminpanel" element={<AdminPanel />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
         </Routes>
+        <ChatBot />
       </div>
     </Router>
   );

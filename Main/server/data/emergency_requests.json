@@ -1,56 +1,22 @@
 [
   {
-    "id": 1749236664847,
-    "user_id": 1,
+    "id": 1749246172647,
+    "user_id": "1",
     "patient_name": "Ansh",
-    "date": "2025-06-06T19:04:24.848Z",
+    "problem_description": "dsdaasd",
+    "details": "Age: 19",
     "status": "granted",
-    "problem_description": "accident ",
-    "details": "Age: 19\nLocation: jod\nContact: 7393800862",
-    "code": "SRN-84BG-0X0F",
-    "grantedAt": "2025-06-06T19:04:48.403Z"
+    "code": "SRN-X0NV-WWKA",
+    "grantedAt": "2025-06-06T21:43:08.515Z"
   },
   {
-    "id": 1749236937676,
-    "user_id": 1,
+    "id": 1749246205089,
+    "user_id": "1",
     "patient_name": "aryan",
-    "date": "2025-06-06T19:08:57.676Z",
+    "problem_description": "ljkkjl",
+    "details": "Age: 44",
     "status": "dismissed",
-    "problem_description": "tatto me cancer",
-    "details": "Age: 19\nLocation: jod\nContact: 7393800862",
     "code": null,
     "grantedAt": null
-  },
-  {
-    "id": 1749236999825,
-    "user_id": 1,
-    "patient_name": "Arjun",
-    "date": "2025-06-06T19:09:59.825Z",
-    "status": "granted",
-    "problem_description": "metro me bache chori",
-    "details": "Age: 19\nLocation: delhi\nContact: 7393800862",
-    "code": "SRN-27C6-PBG2",
-    "grantedAt": "2025-06-06T19:10:17.849Z"
-  },
-  {
-    "id": 1749238156201,
-    "user_id": 1,
-    "patient_name": "Ansh",
-    "date": "2025-06-06T19:29:16.201Z",
-    "status": "granted",
-    "problem_description": "jj",
-    "details": "Age: 19",
-    "code": "SRN-SWEQ-9CYF",
-    "grantedAt": "2025-06-06T19:30:16.891Z"
-  },
-  {
-    "id": 1749239223060,
-    "user_id": 1,
-    "patient_name": "Ansh",
-    "date": "2025-06-06T19:47:03.060Z",
-    "status": "pending",
-    "problem_description": "jod",
-    "details": "Age: 19",
-    "code": null
   }
 ]

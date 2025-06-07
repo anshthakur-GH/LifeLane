@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Calendar, FileText, AlertCircle } from 'lucide-react';
 
@@ -8,9 +8,14 @@ export const EmergencyRequestForm: React.FC = () => {
     age: '',
     problemDescription: '',
   });
+  const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [audioURL, setAudioURL] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -19,20 +24,61 @@ export const EmergencyRequestForm: React.FC = () => {
     });
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setImage(e.target.files[0]);
+    } else {
+      setImage(null);
+    }
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new window.MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      const audioChunks: BlobPart[] = [];
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        setAudioURL(URL.createObjectURL(audioBlob));
+      };
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      alert('Microphone access denied or not available.');
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
+      const form = new FormData();
+      form.append('user_id', '1'); // Replace with real user id if available
+      form.append('patient_name', formData.patientName);
+      form.append('problem_description', formData.problemDescription);
+      form.append('details', `Age: ${formData.age}`);
+      if (image) {
+        form.append('image', image);
+      }
+      if (audioBlob) {
+        form.append('audio', audioBlob, 'emergency-audio.webm');
+      }
       const res = await fetch('http://localhost:5000/api/emergency-request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: 1, // Replace with real user id if available
-          patient_name: formData.patientName,
-          problem_description: formData.problemDescription,
-          details: `Age: ${formData.age}`,
-        }),
+        body: form,
       });
       const data = await res.json();
       if (res.ok && data.id) {
@@ -118,6 +164,54 @@ export const EmergencyRequestForm: React.FC = () => {
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-header mb-3">
+                Upload Image (optional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/80"
+              />
+              {image && (
+                <div className="mt-2 text-sm text-gray-600">Selected: {image.name}</div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-header mb-3">
+                Record Audio (optional)
+              </label>
+              <div className="flex items-center gap-4">
+                {!isRecording ? (
+                  <button
+                    type="button"
+                    onClick={handleStartRecording}
+                    className="bg-primary text-white px-4 py-2 rounded-xl font-semibold hover:bg-primary/90 transition-all"
+                  >
+                    Start Recording
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStopRecording}
+                    className="bg-emergency text-white px-4 py-2 rounded-xl font-semibold hover:bg-emergency/90 transition-all"
+                  >
+                    Stop Recording
+                  </button>
+                )}
+                {audioURL && (
+                  <audio controls src={audioURL} className="ml-4">
+                    Your browser does not support the audio element.
+                  </audio>
+                )}
+              </div>
+              {audioBlob && !isRecording && (
+                <div className="mt-2 text-sm text-gray-600">Audio recorded and ready to submit.</div>
+              )}
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">

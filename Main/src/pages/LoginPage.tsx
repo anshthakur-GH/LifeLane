@@ -42,7 +42,7 @@ export const LoginPage: React.FC = () => {
               Login
             </button>
             <button
-              className={`flex-1 py-3 px-4 text-center font-semibold transition-colors ${
+              className={`flex-1 py-3 px-4 text-center font-semibold rounded-r-lg transition-colors ${
                 activeTab === 'register'
                   ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -50,16 +50,6 @@ export const LoginPage: React.FC = () => {
               onClick={() => setActiveTab('register')}
             >
               Register
-            </button>
-            <button
-              className={`flex-1 py-3 px-4 text-center font-semibold rounded-r-lg transition-colors ${
-                activeTab === 'admin'
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              onClick={() => setActiveTab('admin')}
-            >
-              Login as Admin
             </button>
           </div>
 
@@ -198,19 +188,21 @@ export const LoginPage: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-emergency text-white py-3 px-4 rounded-lg font-semibold hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-lg block text-center"
+                  className="w-full bg-emergency text-white py-3 px-4 rounded-lg font-semibold hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-lg block text-center mt-4"
                 >
                   Login as Admin
                 </button>
               </>
             )}
 
-            <Link
-              to="/dashboard"
-              className="w-full bg-emergency text-white py-3 px-4 rounded-lg font-semibold hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-lg block text-center"
-            >
-              {activeTab === 'login' ? 'Sign In' : activeTab === 'register' ? 'Create Account' : 'Login as Admin'}
-            </Link>
+            {activeTab !== 'admin' && (
+              <Link
+                to="/dashboard"
+                className="w-full bg-emergency text-white py-3 px-4 rounded-lg font-semibold hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-lg block text-center"
+              >
+                {activeTab === 'login' ? 'Sign In' : 'Create Account'}
+              </Link>
+            )}
           </form>
 
           {activeTab === 'login' && (
@@ -218,6 +210,13 @@ export const LoginPage: React.FC = () => {
               <a href="#" className="text-primary hover:underline text-sm">
                 Forgot your password?
               </a>
+              <button
+                type="button"
+                onClick={() => setActiveTab('admin')}
+                className="ml-2 text-primary text-sm px-4 py-2 rounded hover:underline border border-primary bg-white"
+              >
+                Login as Admin
+              </button>
             </div>
           )}
 

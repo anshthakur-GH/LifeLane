@@ -1,3 +1,4 @@
+import logo from '../assets/logo.png'
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Heart, Menu, X } from 'lucide-react';
@@ -9,44 +10,43 @@ export const Header: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <header className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50 h-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
+        <div className="flex justify-between items-center w-full py-4">
           {/* Logo on the left */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="bg-emergency p-2 rounded-lg">
-              <Heart className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-header">LifeLane</span>
+            <img src={logo} alt="Logo" className="h-16 w-auto" />
           </Link>
 
           {/* Centered Navigation */}
-          <nav className="hidden md:flex items-center space-x-8 absolute left-1/2 transform -translate-x-1/2">
-            <Link
-              to="/"
-              className={`$${isActive('/') ? 'text-primary' : 'text-header hover:text-primary'} font-medium transition-colors`}
-            >
-              Home
-            </Link>
-            <Link
-              to="/dashboard"
-              className={`$${isActive('/dashboard') ? 'text-primary' : 'text-header hover:text-primary'} font-medium transition-colors`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/contact"
-              className={`$${isActive('/contact') ? 'text-primary' : 'text-header hover:text-primary'} font-medium transition-colors`}
-            >
-              Contact
-            </Link>
+          <nav className="hidden md:flex items-center absolute left-1/2 transform -translate-x-1/2">
+            <div className="flex space-x-8 border border-header/50 rounded-full px-6 py-2 bg-transparent">
+              <Link
+                to="/"
+                className={`$${isActive('/') ? 'text-primary' : 'text-header hover:text-primary'} text-xl font-semibold px-6 py-3 rounded transition-colors`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/dashboard"
+                className={`$${isActive('/dashboard') ? 'text-primary' : 'text-header hover:text-primary'} text-xl font-semibold px-6 py-3 rounded transition-colors`}
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/contact"
+                className={`$${isActive('/contact') ? 'text-primary' : 'text-header hover:text-primary'} text-xl font-semibold px-6 py-3 rounded transition-colors`}
+              >
+                Contact
+              </Link>
+            </div>
           </nav>
 
           {/* Login on the right */}
           <div className="hidden md:flex items-center space-x-4 ml-auto">
             <Link
               to="/login"
-              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-opacity"
+              className="bg-gradient-to-r from-primary to-emergency text-white px-8 py-3 rounded-full font-semibold shadow-lg transition-all hover:from-primary hover:to-emergency"
             >
               Login
             </Link>
@@ -92,7 +92,7 @@ export const Header: React.FC = () => {
               </Link>
               <Link
                 to="/login"
-                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-opacity w-fit"
+                className="bg-gradient-to-r from-primary to-emergency text-white px-8 py-3 rounded-full font-semibold shadow-lg transition-all hover:from-primary hover:to-emergency w-fit"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Login

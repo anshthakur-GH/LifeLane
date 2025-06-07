@@ -50,6 +50,19 @@ export const AdminPanel: React.FC = () => {
     fetchRequests();
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'text-yellow-600';
+      case 'granted':
+        return 'text-green-600';
+      case 'dismissed':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
   return (
     <div className="pt-16 min-h-screen bg-bg-light">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -71,13 +84,7 @@ export const AdminPanel: React.FC = () => {
                         {request.patient_name}
                       </h3>
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          request.status === 'pending'
-                            ? 'bg-warning text-warning'
-                            : request.status === 'granted'
-                            ? 'bg-success text-success'
-                            : 'bg-gray-300 text-gray-600'
-                        }`}
+                        className={`inline-flex items-center text-xs font-semibold ${getStatusColor(request.status)}`}
                       >
                         {request.status === 'pending' && <Eye className="w-4 h-4 mr-1" />}
                         {request.status === 'granted' && <CheckCircle className="w-4 h-4 mr-1" />}

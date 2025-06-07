@@ -162,9 +162,12 @@ export const RequestStatus: React.FC = () => {
             >
               Back to Dashboard
             </Link>
-            <button className="bg-emergency text-white px-6 py-3 rounded-xl font-semibold hover:bg-opacity-90 transition-all">
+            <Link
+              to="/contact"
+              className="bg-emergency text-white px-6 py-3 rounded-xl font-semibold hover:bg-opacity-90 transition-all"
+            >
               Contact Support
-            </button>
+            </Link>
           </div>
         </div>
       </div>

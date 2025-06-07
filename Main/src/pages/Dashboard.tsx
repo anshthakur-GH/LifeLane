@@ -10,7 +10,7 @@ export const Dashboard: React.FC = () => {
     const fetchRequests = async () => {
       const res = await fetch('http://localhost:5000/api/emergency-requests');
       const data = await res.json();
-      setRequests(data.filter((r: any) => r.user_id === userId));
+      setRequests(data.filter((r: any) => String(r.user_id) === String(userId)));
     };
     fetchRequests();
     const interval = setInterval(fetchRequests, 5000);
@@ -20,13 +20,13 @@ export const Dashboard: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'bg-warning text-yellow-800';
+        return 'text-yellow-600';
       case 'granted':
-        return 'bg-success text-green-800';
+        return 'text-green-600';
       case 'dismissed':
-        return 'bg-gray-100 text-gray-800';
+        return 'text-red-600';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'text-gray-600';
     }
   };
 
@@ -134,9 +134,7 @@ export const Dashboard: React.FC = () => {
                           {request.patient_name}
                         </h3>
                         <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            request.status
-                          )}`}
+                          className={`inline-flex items-center text-xs font-semibold ${getStatusColor(request.status)}`}
                         >
                           {getStatusIcon(request.status)}
                           <span className="ml-1 capitalize">{request.status === 'granted' ? 'Granted' : request.status}</span>
