@@ -20,8 +20,22 @@ const app = express();
 const port = process.env.PORT || 5000;
 const upload = multer();
 
+// Enable CORS for all routes
+app.use(cors({
+  origin: true, // Allow requests from the same origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json());
+
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../dist')));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // JSON file paths
 const emergencyRequestsPath = path.join(__dirname, 'data', 'emergency_requests.json');
@@ -39,9 +53,6 @@ if (!fs.existsSync(emergencyRequestsPath)) {
 if (!fs.existsSync(usersPath)) {
   fs.writeFileSync(usersPath, JSON.stringify([]));
 }
-
-app.use(cors());
-app.use(express.json());
 
 // JWT Auth Middleware
 function authenticateToken(req, res, next) {
@@ -257,17 +268,17 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Health check route
-app.get('/', (req, res) => {
-  res.send('LifeLane backend is running');
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    error: 'Something went wrong!',
+    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
+  });
 });
 
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
-
-app.listen(port, () => {
+// Start server
+app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 }); 
