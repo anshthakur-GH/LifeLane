@@ -98,9 +98,9 @@ export const ChatBot: React.FC = () => {
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-90 transition-all text-2xl flex items-center justify-center"
+          className="bg-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-90 transition-all flex items-center justify-center w-16 h-16"
         >
-          <img src={BotLogo} alt="Bot Logo" className="w-8 h-8" />
+          <img src={BotLogo} alt="Bot Logo" className="w-12 h-12 object-contain" />
         </button>
       ) : (
         <div className="bg-white rounded-lg shadow-xl w-96 h-[500px] flex flex-col">
