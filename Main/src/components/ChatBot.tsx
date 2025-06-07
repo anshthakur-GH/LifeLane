@@ -13,7 +13,7 @@ export const ChatBot: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasWelcomed = useRef(false);
+  const hasWelcomed = useRef(false) ; 
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
