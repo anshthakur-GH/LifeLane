@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Mail, Lock, User, Phone } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin'>('login');
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -150,12 +150,59 @@ export const LoginPage: React.FC = () => {
               </div>
             )}
 
-            <Link
-              to="/dashboard"
-              className="w-full bg-emergency text-white py-3 px-4 rounded-lg font-semibold hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-lg block text-center"
-            >
-              {activeTab === 'login' ? 'Sign In' : 'Create Account'}
-            </Link>
+            {activeTab === 'admin' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-header mb-2">
+                    Admin Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="email"
+                      name="adminEmail"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                      placeholder="Enter admin email"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-header mb-2">
+                    Admin Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="password"
+                      name="adminPassword"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                      placeholder="Enter admin password"
+                      required
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-emergency text-white py-3 px-4 rounded-lg font-semibold hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-lg block text-center mt-4"
+                >
+                  Login as Admin
+                </button>
+              </>
+            )}
+
+            {activeTab !== 'admin' && (
+              <Link
+                to="/dashboard"
+                className="w-full bg-emergency text-white py-3 px-4 rounded-lg font-semibold hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-lg block text-center"
+              >
+                {activeTab === 'login' ? 'Sign In' : 'Create Account'}
+              </Link>
+            )}
           </form>
 
           {activeTab === 'login' && (
@@ -163,6 +210,13 @@ export const LoginPage: React.FC = () => {
               <a href="#" className="text-primary hover:underline text-sm">
                 Forgot your password?
               </a>
+              <button
+                type="button"
+                onClick={() => setActiveTab('admin')}
+                className="ml-2 text-primary text-sm px-4 py-2 rounded hover:underline border border-primary bg-white"
+              >
+                Login as Admin
+              </button>
             </div>
           )}
 

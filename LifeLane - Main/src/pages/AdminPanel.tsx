@@ -7,9 +7,20 @@ export const AdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchRequests = async () => {
-    const res = await fetch('http://localhost:5000/api/emergency-requests');
-    const data = await res.json();
-    setRequests(data);
+    try {
+      const res = await fetch('http://localhost:5000/api/emergency-requests');
+      if (!res.ok) throw new Error('Failed to fetch requests');
+      const data = await res.json();
+      
+      // Sort requests by date (newest first)
+      const sortedData = data.sort((a: any, b: any) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      
+      setRequests(sortedData);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    }
   };
 
   useEffect(() => {
@@ -26,28 +37,40 @@ export const AdminPanel: React.FC = () => {
     setSelectedRequest(null);
   };
 
-  const handleGrant = async (id: number) => {
+  const handleGrant = async (id: string) => {
     setLoading(true);
-    await fetch(`http://localhost:5000/api/emergency-request/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'granted' }),
-    });
-    setLoading(false);
-    setSelectedRequest(null);
-    fetchRequests();
+    try {
+      const res = await fetch(`http://localhost:5000/api/emergency-request/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'granted' }),
+      });
+      if (!res.ok) throw new Error('Failed to grant request');
+      await fetchRequests(); // Refresh the list
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error('Error granting request:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDismiss = async (id: number) => {
+  const handleDismiss = async (id: string) => {
     setLoading(true);
-    await fetch(`http://localhost:5000/api/emergency-request/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'dismissed' }),
-    });
-    setLoading(false);
-    setSelectedRequest(null);
-    fetchRequests();
+    try {
+      const res = await fetch(`http://localhost:5000/api/emergency-request/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'dismissed' }),
+      });
+      if (!res.ok) throw new Error('Failed to dismiss request');
+      await fetchRequests(); // Refresh the list
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error('Error dismissing request:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -79,29 +102,20 @@ export const AdminPanel: React.FC = () => {
                   className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-center md:justify-between"
                 >
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-header">
-                        {request.patient_name}
-                      </h3>
-                      <span
-                        className={`inline-flex items-center text-xs font-semibold ${getStatusColor(request.status)}`}
-                      >
-                        {request.status === 'pending' && <Eye className="w-4 h-4 mr-1" />}
-                        {request.status === 'granted' && <CheckCircle className="w-4 h-4 mr-1" />}
-                        {request.status === 'dismissed' && <XCircle className="w-4 h-4 mr-1" />}
-                        <span className="ml-1 capitalize">{request.status}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-bold text-lg text-header">{request.patient_name}</span>
+                      <span className={`ml-2 font-semibold ${getStatusColor(request.status)}`}>
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                       </span>
                     </div>
                     <p className="text-gray-600 mb-2">{request.problem_description}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(request.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </p>
+                    <div className="text-sm text-gray-500">
+                      <span>Age: {request.age}</span>
+                      <span className="mx-2">•</span>
+                      <span>{new Date(request.date).toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="mt-4 md:mt-0 flex flex-col gap-2">
+                  <div className="mt-4 md:mt-0 md:ml-4">
                     <button
                       onClick={() => handleViewDetails(request)}
                       className="inline-flex items-center bg-gray-100 text-header px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
@@ -109,12 +123,6 @@ export const AdminPanel: React.FC = () => {
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
                     </button>
-                    {request.status === 'granted' && request.code && (
-                      <div className="flex items-center text-success mt-2">
-                        <Key className="w-4 h-4 mr-1" />
-                        <span className="font-mono">{request.code}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))
@@ -122,7 +130,6 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Modal for details */}
         {selectedRequest && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative">
@@ -133,10 +140,28 @@ export const AdminPanel: React.FC = () => {
                 ×
               </button>
               <h2 className="text-2xl font-bold text-header mb-4">Request Details</h2>
-              <p className="mb-2"><strong>Patient:</strong> {selectedRequest.patient_name}</p>
-              <p className="mb-2"><strong>Date:</strong> {selectedRequest.date}</p>
-              <p className="mb-2"><strong>Description:</strong> {selectedRequest.problem_description}</p>
-              <p className="mb-4"><strong>Details:</strong> {selectedRequest.details}</p>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-700">Patient Information</h3>
+                  <p className="text-gray-600">Name: {selectedRequest.patient_name}</p>
+                  <p className="text-gray-600">Age: {selectedRequest.age}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-700">Emergency Description</h3>
+                  <p className="text-gray-600">{selectedRequest.problem_description}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-700">Request Details</h3>
+                  <p className="text-gray-600">Status: {selectedRequest.status}</p>
+                  <p className="text-gray-600">Date: {new Date(selectedRequest.date).toLocaleString()}</p>
+                </div>
+                {selectedRequest.status === 'granted' && selectedRequest.code && (
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-green-700">Activation Code</h3>
+                    <p className="text-2xl font-mono text-green-600 mt-2">{selectedRequest.code}</p>
+                  </div>
+                )}
+              </div>
               {selectedRequest.status === 'pending' && (
                 <div className="flex gap-4 mt-6">
                   <button
@@ -154,15 +179,6 @@ export const AdminPanel: React.FC = () => {
                     Dismiss
                   </button>
                 </div>
-              )}
-              {selectedRequest.status === 'granted' && selectedRequest.code && (
-                <div className="mt-6 flex items-center text-success">
-                  <Key className="w-5 h-5 mr-2" />
-                  <span className="font-mono text-lg">Issued Code: {selectedRequest.code}</span>
-                </div>
-              )}
-              {selectedRequest.status === 'dismissed' && (
-                <div className="mt-6 text-emergency font-semibold">Request was dismissed.</div>
               )}
             </div>
           </div>

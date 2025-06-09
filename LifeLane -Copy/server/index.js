@@ -7,13 +7,19 @@ import path from 'path';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
 import OpenAI from 'openai';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import pool from './config/db.js';
+import { auth, adminAuth } from './middleware/auth.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 5000;
-const upload = multer();
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -25,8 +31,51 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../dist')));
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, 'uploads', file.fieldname === 'image' ? 'images' : 'audio');
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage,
+    limits: {
+        fileSize: file => file.fieldname === 'image' ? 5 * 1024 * 1024 : 10 * 1024 * 1024 // 5MB for images, 10MB for audio
+    },
+    fileFilter: (req, file, cb) => {
+        if (file.fieldname === 'image') {
+            if (file.mimetype.startsWith('image/')) {
+                cb(null, true);
+            } else {
+                cb(new Error('Only image files are allowed'));
+            }
+        } else {
+            if (file.mimetype.startsWith('audio/')) {
+                cb(null, true);
+            } else {
+                cb(new Error('Only audio files are allowed'));
+            }
+        }
+    }
+});
+
+// Create upload directories if they don't exist
+const uploadDirs = ['uploads/images', 'uploads/audio'];
+uploadDirs.forEach(dir => {
+    const dirPath = path.join(__dirname, dir);
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+});
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // JSON file paths
 const emergencyRequestsPath = path.join(__dirname, 'data', 'emergency_requests.json');
@@ -104,6 +153,141 @@ function findMatchingIntent(message) {
   // Return fallback if no match found
   return chatbotIntents.fallback;
 }
+
+// User Registration
+app.post('/api/register', async (req, res) => {
+    try {
+        const { email, password, fullName } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const [result] = await pool.execute(
+            'INSERT INTO users (email, password, full_name) VALUES (?, ?, ?)',
+            [email, hashedPassword, fullName]
+        );
+        
+        const token = jwt.sign({ id: result.insertId, email }, process.env.JWT_SECRET);
+        res.status(201).json({ token });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// User Login
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        const [users] = await pool.execute(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
+        
+        if (users.length === 0) {
+            throw new Error('Invalid credentials');
+        }
+        
+        const user = users[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+        
+        if (!isMatch) {
+            throw new Error('Invalid credentials');
+        }
+        
+        const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET);
+        res.json({ token });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Admin Login
+app.post('/api/admin/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        const [admins] = await pool.execute(
+            'SELECT * FROM admins WHERE email = ?',
+            [email]
+        );
+        
+        if (admins.length === 0) {
+            throw new Error('Invalid credentials');
+        }
+        
+        const admin = admins[0];
+        const isMatch = await bcrypt.compare(password, admin.password);
+        
+        if (!isMatch) {
+            throw new Error('Invalid credentials');
+        }
+        
+        const token = jwt.sign(
+            { id: admin.id, email: admin.email, isAdmin: true },
+            process.env.JWT_SECRET
+        );
+        res.json({ token });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Create Emergency Request
+app.post('/api/emergency', auth, async (req, res) => {
+    try {
+        const { emergencyType, description, location, imageUrl, audioUrl } = req.body;
+        
+        const [result] = await pool.execute(
+            'INSERT INTO emergency_requests (user_id, emergency_type, description, location, image_url, audio_url) VALUES (?, ?, ?, ?, ?, ?)',
+            [req.user.id, emergencyType, description, location, imageUrl, audioUrl]
+        );
+        
+        res.status(201).json({ id: result.insertId });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Get User's Emergency Requests
+app.get('/api/emergency/user', auth, async (req, res) => {
+    try {
+        const [requests] = await pool.execute(
+            'SELECT * FROM emergency_requests WHERE user_id = ? ORDER BY created_at DESC',
+            [req.user.id]
+        );
+        res.json(requests);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Get All Emergency Requests (Admin only)
+app.get('/api/emergency/all', adminAuth, async (req, res) => {
+    try {
+        const [requests] = await pool.execute(
+            'SELECT er.*, u.full_name, u.email FROM emergency_requests er JOIN users u ON er.user_id = u.id ORDER BY er.created_at DESC'
+        );
+        res.json(requests);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Update Emergency Request Status (Admin only)
+app.patch('/api/emergency/:id/status', adminAuth, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const { id } = req.params;
+        
+        await pool.execute(
+            'UPDATE emergency_requests SET status = ? WHERE id = ?',
+            [status, id]
+        );
+        
+        res.json({ message: 'Status updated successfully' });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
 
 // POST: Save new emergency request
 app.post('/api/emergency-request', (req, res) => {
@@ -282,6 +466,23 @@ app.post('/api/chatbot', (req, res) => {
 // Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// File upload endpoints
+app.post('/api/upload/image', auth, upload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const fileUrl = `/uploads/images/${req.file.filename}`;
+    res.json({ url: fileUrl });
+});
+
+app.post('/api/upload/audio', auth, upload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const fileUrl = `/uploads/audio/${req.file.filename}`;
+    res.json({ url: fileUrl });
 });
 
 // Start the server

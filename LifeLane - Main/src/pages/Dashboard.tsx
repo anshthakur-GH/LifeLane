@@ -3,20 +3,56 @@ import { Link } from 'react-router-dom';
 import { Plus, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const fetchRequests = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/emergency-requests');
+      if (!res.ok) throw new Error('Failed to fetch requests');
+      const data = await res.json();
+      
+      // Sort requests by date (newest first)
+      const sortedData = data.sort((a: any, b: any) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      
+      setRequests(sortedData);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    }
+  };
+
   useEffect(() => {
-    const token = localStorage.getItem('token');
     const admin = localStorage.getItem('is_admin') === 'true';
     setIsAdmin(admin);
-    if (!token) return;
-    fetch(admin ? '/api/emergency-requests' : '/api/my-requests', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setRequests(data));
+
+    // Initial fetch
+    fetchRequests();
+
+    // Set up polling every 5 seconds
+    const interval = setInterval(fetchRequests, 5000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Summary counts
+  const total = requests.length;
+  const pending = requests.filter(r => r.status === 'pending').length;
+  const granted = requests.filter(r => r.status === 'granted').length;
+  const dismissed = requests.filter(r => r.status === 'dismissed').length;
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="w-4 h-4 text-yellow-500 inline-block align-middle" />;
+      case 'granted':
+        return <CheckCircle className="w-4 h-4 text-green-600 inline-block align-middle" />;
+      case 'dismissed':
+        return <XCircle className="w-4 h-4 text-red-600 inline-block align-middle" />;
+      default:
+        return null;
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -28,19 +64,6 @@ export const Dashboard: React.FC = () => {
         return 'text-red-600';
       default:
         return 'text-gray-600';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Clock className="w-4 h-4" />;
-      case 'granted':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'dismissed':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -68,71 +91,59 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold mb-4">{isAdmin ? 'All Emergency Requests' : 'Your Emergency Requests'}</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
-                  {isAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>}
-                  {isAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {requests.map((req: any) => (
-                  <tr key={req.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{req.patient_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{req.status}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{new Date(req.createdAt).toLocaleString()}</td>
-                    {isAdmin && <td className="px-6 py-4 whitespace-nowrap">{req.user_name} ({req.user_email})</td>}
-                    {isAdmin && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          className="bg-green-500 text-white px-3 py-1 rounded mr-2"
-                          onClick={async () => {
-                            const token = localStorage.getItem('token');
-                            await fetch(`/api/emergency-request/${req.id}`, {
-                              method: 'PUT',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                              },
-                              body: JSON.stringify({ status: 'granted' })
-                            });
-                            window.location.reload();
-                          }}
-                          disabled={req.status === 'granted'}
-                        >
-                          Grant
-                        </button>
-                        <button
-                          className="bg-red-500 text-white px-3 py-1 rounded"
-                          onClick={async () => {
-                            const token = localStorage.getItem('token');
-                            await fetch(`/api/emergency-request/${req.id}`, {
-                              method: 'PUT',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                              },
-                              body: JSON.stringify({ status: 'dismissed' })
-                            });
-                            window.location.reload();
-                          }}
-                          disabled={req.status === 'dismissed'}
-                        >
-                          Dismiss
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-600 mb-2">Total Requests</h3>
+            <p className="text-3xl font-bold text-header">{total}</p>
           </div>
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-yellow-600 mb-2">Pending</h3>
+            <p className="text-3xl font-bold text-yellow-600">{pending}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-green-600 mb-2">Granted</h3>
+            <p className="text-3xl font-bold text-green-600">{granted}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-red-600 mb-2">Dismissed</h3>
+            <p className="text-3xl font-bold text-red-600">{dismissed}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h2 className="text-2xl font-bold mb-4">Recent Requests</h2>
+          {requests.length === 0 ? (
+            <div className="text-center text-gray-400 py-12 text-lg">No emergency requests found.</div>
+          ) : (
+            <div className="space-y-6">
+              {requests.map((req: any) => (
+                <div key={req.id} className="border rounded-xl p-6 flex flex-col md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-lg text-header capitalize">{req.patient_name}</span>
+                      <span className={`ml-2 font-semibold ${getStatusColor(req.status)}`}>
+                        {getStatusIcon(req.status)} {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="text-gray-600 mb-1">{req.problem_description}</div>
+                    <div className="text-gray-500 text-sm mb-1">Age: {req.age}</div>
+                    <div className="text-gray-400 text-xs">{new Date(req.date).toLocaleString()}</div>
+                  </div>
+                  <div className="mt-4 md:mt-0">
+                    <Link
+                      to={`/status/${req.id}`}
+                      className="inline-flex items-center bg-gray-100 text-header px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
