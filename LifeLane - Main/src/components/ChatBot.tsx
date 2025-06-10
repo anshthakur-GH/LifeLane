@@ -22,9 +22,8 @@ export const ChatBot: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const handleSend = async () => {
+    if (!input.trim()) return;
 
     const userMessage = input.trim();
     setInput('');
@@ -32,52 +31,55 @@ export const ChatBot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/chatbot', {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/chatbot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify({ message: userMessage }),
       });
 
-      const data = await response.json();
-      
-      if (data.success) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
-      } else {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: "I'm having trouble processing your request. Please try again or contact support." 
-        }]);
+      if (!res.ok) {
+        throw new Error('Failed to get response');
       }
+
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
     } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "I'm having trouble connecting to the server. Please try again later." 
+        content: "I'm sorry, I'm having trouble connecting right now. Please try again later." 
       }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <>
-      {/* Chat Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-white p-4 rounded-full shadow-lg hover:bg-opacity-90 transition-all transform hover:scale-105"
-      >
-        <img src={botLogo} alt="LifeBot" className="w-8 h-8" />
-      </button>
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-xl flex flex-col">
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      {!isOpen ? (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="bg-primary text-white p-4 rounded-full shadow-lg hover:bg-opacity-90 transition-all transform hover:scale-105"
+        >
+          <img src={botLogo} alt="Chat" className="w-8 h-8" />
+        </button>
+      ) : (
+        <div className="bg-white rounded-lg shadow-xl w-96 h-[600px] flex flex-col">
           {/* Header */}
           <div className="p-4 border-b flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <img src={botLogo} alt="LifeBot" className="w-6 h-6" />
-              <h3 className="font-semibold text-lg">LifeBot Assistant</h3>
+            <div className="flex items-center space-x-2">
+              <img src={botLogo} alt="Bot" className="w-8 h-8" />
+              <h3 className="font-semibold text-gray-800">LifeBot</h3>
             </div>
             <button
               onClick={() => setIsOpen(false)}
@@ -120,27 +122,27 @@ export const ChatBot: React.FC = () => {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="p-4 border-t">
+          <div className="p-4 border-t">
             <div className="flex space-x-2">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
                 placeholder="Type your message..."
                 className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isLoading}
               />
               <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="bg-primary text-white p-2 rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50"
+                onClick={handleSend}
+                disabled={isLoading}
+                className="bg-primary text-white p-2 rounded-lg hover:bg-opacity-90 transition-all disabled:opacity-50"
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }; 

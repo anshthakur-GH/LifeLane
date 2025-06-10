@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, CheckCircle, XCircle, Key } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const AdminPanel: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const fetchRequests = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/emergency-requests');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const res = await fetch('http://localhost:5000/api/emergency-requests', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error('Failed to fetch requests');
       const data = await res.json();
       
       // Sort requests by date (newest first)
       const sortedData = data.sort((a: any, b: any) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
       
       setRequests(sortedData);
@@ -40,9 +52,18 @@ export const AdminPanel: React.FC = () => {
   const handleGrant = async (id: string) => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
       const res = await fetch(`http://localhost:5000/api/emergency-request/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status: 'granted' }),
       });
       if (!res.ok) throw new Error('Failed to grant request');
@@ -58,9 +79,18 @@ export const AdminPanel: React.FC = () => {
   const handleDismiss = async (id: string) => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
       const res = await fetch(`http://localhost:5000/api/emergency-request/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status: 'dismissed' }),
       });
       if (!res.ok) throw new Error('Failed to dismiss request');

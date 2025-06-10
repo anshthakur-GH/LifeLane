@@ -65,10 +65,17 @@ export const EmergencyRequestForm: React.FC = () => {
     setLoading(true);
     setError('');
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
       const res = await fetch('http://localhost:5000/api/emergency-request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           patientName: formData.patientName,
@@ -80,18 +87,6 @@ export const EmergencyRequestForm: React.FC = () => {
       const data = await res.json();
       
       if (res.ok && data.id) {
-        // Store the request ID in localStorage for the dashboard
-        const existingRequests = JSON.parse(localStorage.getItem('userRequests') || '[]');
-        existingRequests.push({
-          id: data.id,
-          patient_name: formData.patientName,
-          problem_description: formData.problemDescription,
-          age: formData.age,
-          status: 'pending',
-          date: new Date().toISOString()
-        });
-        localStorage.setItem('userRequests', JSON.stringify(existingRequests));
-        
         // Navigate to status page with the request ID
         navigate(`/status/${data.id}`);
       } else {

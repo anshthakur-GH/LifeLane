@@ -1,20 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const navigate = useNavigate();
 
   const fetchRequests = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/emergency-requests');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const res = await fetch('http://localhost:5000/api/emergency-requests/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error('Failed to fetch requests');
       const data = await res.json();
       
       // Sort requests by date (newest first)
       const sortedData = data.sort((a: any, b: any) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
       
       setRequests(sortedData);
@@ -33,7 +44,7 @@ export const Dashboard: React.FC = () => {
     // Set up polling every 5 seconds
     const interval = setInterval(fetchRequests, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [navigate]);
 
   // Summary counts
   const total = requests.length;
